@@ -10,8 +10,9 @@
 
 #include "shlobj.h"
 
-// #pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )   //不显示控制台
-
+#ifndef _DEBUG
+#pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )   //不显示控制台
+#endif
 
 HHOOK hook;
 
@@ -23,6 +24,21 @@ std::wstring     stringToWstring(const std::string & str);
 void             task();
 
 int main() {
+  // 创建一个命名的互斥体防止重复启动
+  HANDLE hMutex = CreateMutex(NULL, TRUE, L"screenshot_tool");
+
+  //hMutex创建失败，退出
+  if (hMutex == NULL) {
+    return 1;
+  }
+
+  // 如果互斥体已经存在，退出
+  if (GetLastError() == ERROR_ALREADY_EXISTS) {
+    CloseHandle(hMutex);
+    return 1;
+  }
+
+
   // 注册键盘钩子
   hook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
 
@@ -35,6 +51,8 @@ int main() {
 
   // 卸载钩子
   UnhookWindowsHookEx(hook);
+  // 释放互斥体
+  CloseHandle(hMutex);
   return 0;
 }
 
@@ -51,9 +69,9 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         // 处理按下事件
         keyDownCount++;
 
-        //0.3s的中断检测
+        //0.5s的中断检测
         std::thread([&]() {
-          std::this_thread::sleep_for(std::chrono::milliseconds(300));
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
           keyDownCount = 0;
         }).detach();
 
