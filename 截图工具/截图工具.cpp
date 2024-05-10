@@ -5,34 +5,37 @@
 #include <sstream>
 #include <Windows.h>
 #include <filesystem>
+#include <future>
+#include <thread>
 
 #include "shlobj.h"
 
-#pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )   //不显示控制台
+// #pragma comment( linker, "/subsystem:windows /entry:mainCRTStartup" )   //不显示控制台
 
 
 HHOOK hook;
 
+
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
-std::wstring getDesktopPath();
-void         CaptureScreen(const std::wstring & filePath);
-std::wstring stringToWstring(const std::string & str);
-void         task();
+std::wstring     getDesktopPath();
+void             CaptureScreen(const std::wstring & filePath);
+std::wstring     stringToWstring(const std::string & str);
+void             task();
 
 int main() {
-    // 注册键盘钩子
-    hook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
+  // 注册键盘钩子
+  hook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
 
-    // 消息循环
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+  // 消息循环
+  MSG msg;
+  while (GetMessage(&msg, NULL, 0, 0)) {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+  }
 
-    // 卸载钩子
-    UnhookWindowsHookEx(hook);
-    return 0;
+  // 卸载钩子
+  UnhookWindowsHookEx(hook);
+  return 0;
 }
 
 
@@ -47,6 +50,13 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
       if (wParam == WM_KEYDOWN) {
         // 处理按下事件
         keyDownCount++;
+
+        //0.3s的中断检测
+        std::thread([&]() {
+          std::this_thread::sleep_for(std::chrono::milliseconds(300));
+          keyDownCount = 0;
+        }).detach();
+
         if (keyDownCount == 2) {
           task();
           keyDownCount = 0;
@@ -173,4 +183,3 @@ std::wstring stringToWstring(const std::string & str) {
   std::copy(str.begin(), str.end(), wstr.begin());
   return wstr;
 }
-
